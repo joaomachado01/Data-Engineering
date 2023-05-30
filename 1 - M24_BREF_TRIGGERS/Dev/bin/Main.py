@@ -1,0 +1,102 @@
+### BREF
+"""
+|==================================================|
+|         CODE Name: Main.py                       |
+|   PURPOSE: Main code Load TRIGGERS Table         |
+|  For Lack of communication on Financial State    |
+|=========|==========|====================|========|
+| Version |    Date  |       author       |        |
+|   v1.0  | 20220520 |    Joao Machado    | Amexio |
+|=========|==========|====================|========|
+"""
+
+import sys
+import pyspark
+import pyspark.sql.functions
+from pyspark.sql.functions import col, lit,concat
+from pyspark import SparkContext
+from pyspark.sql import SparkSession, Row
+from Functions import *
+from Audit_trail import *
+import getpass
+
+
+if __name__ == "__main__":
+    username = getpass.getuser()
+    os.environ["HADOOP_CONF_DIR"]="/etc/hadoop/conf"
+    spark = (SparkSession.builder.appName('Create table TBL_BREF_TRIGGERS').enableHiveSupport().getOrCreate())
+    spark.conf.set("hive.exec.dynamic.partition.mode", "nonstrict")
+    spark.conf.set("spark.sql.sources.partitionOverwriteMode","dynamic")
+    spark.conf.set("spark.sql.broadcastTimeout","600")
+    spark.sparkContext.setLogLevel("WARN")
+    sc = SparkContext.getOrCreate()
+    props = ReadingGlobalParams()
+    # Add to props the name of the current Job.
+    if username.lower()[1] == 'u':
+        props['cod_job']="UM24DLOADBREFTRIGGERS"
+    elif username.lower()[1] == 'b' :
+        props['cod_job']="BM24DLOADBREFTRIGGERS"
+    elif username.lower()[1] == 'p':
+        props['cod_job']="PM24DLOADBREFTRIGGERS"
+    print(props) 
+    props['TrueNameOfPartkey']='partition_key'
+    tmpODAT = sys.argv[3]
+    # test if (ODAT==j-1) is activated : check XLD dico
+    props   = apply_activation_odat_j1(props , tmpODAT )    
+    props['partition_to_out']=props['ODAT'] 
+    #props['partition_to_load']=determine_partition_date(spark,props)
+    tables=Read_Table_Names(sys.argv[2])
+    print("############################################################################# TABLES #############################################################################")
+    print(tables)
+    props['history_audit_tabel_name_Final'] = props['hive_db_name_dest']+'.'+props['history_audit_tabel_name']
+    audit_schema = get_schema_empty_table_audit(spark)
+    max_col_id = get_max_column_ID( spark, props['history_audit_tabel_name_Final'])
+    start_time   =  time.time()
+    props['final_table_name'] = tables[0]
+    #Insert 'Start_Job' in Hive Table
+    table = tables[0]
+    props['HiveTabel']       = "{0}.{1}_{2}".format(props['hive_db_name_dest'],'tbl',table.rstrip()).lower()
+    dicoTableMain = construct_tmp_values_for_audit_trail( start_time , None , props)
+    dicoTableMain[props['TrueNameOfPartkey']]=props['partition_to_out']#props['partition_to_load'] 
+    ##############################   START JOB ##############################
+    max_col_id = write_audit_row_management( spark  , props , dicoTableMain  ,  'start_job' , audit_schema, max_col_id )
+    for table in tables:
+        ##############################   START ##############################
+        props['HiveTabel']       = "{0}.{1}_{2}".format(props['hive_db_name_dest'],'tbl',table.rstrip()).lower()
+        start_time   =  time.time()
+        props['final_table_name'] = table
+        dicoTable = construct_tmp_values_for_audit_trail( start_time , None , props  )
+        dicoTable[props['TrueNameOfPartkey']]=props['partition_to_out']#props['partition_to_load'] 
+        max_col_id = write_audit_row_management( spark  , props , dicoTable  ,  'start'  ,audit_schema, max_col_id)
+        
+        # Create query for target table
+        create_query, create_query_temp=Read_table_definitions(props['table_def_file'], table,props)
+        
+        # Execute create query
+        print("##################################################################################### CREATE TABLE #####################################################################################") 
+        print('TABLE: ',table, 'QUERY: ',create_query)
+        spark.sql(create_query)
+        print("##################################################################################### CREATE TABLE #####################################################################################") 
+        
+        # Insert query for target table
+        ins_query, ins_rows, props, delete_statement1, delete_statement2 = Read_insert_parameters(spark, props['table_ins_file'],table,props,props['turnovers'], create_query_temp, props['query_hql'])
+        
+        # Execute insert query
+        print('TABLE: ',table, 'QUERY: ',ins_query)
+        spark.sql(ins_query) 
+        
+        # Delete temporary table
+        DeleteTemporaryTable(spark, delete_statement1, delete_statement2)
+        
+        dicoTable[props['TrueNameOfPartkey']]=props['partition_to_out']
+        dicoTable['df'] = ins_rows
+        max_col_id = write_audit_row_management( spark  , props , dicoTable  ,  'insert_partition', audit_schema, max_col_id  )
+        max_col_id = write_audit_row_management( spark  , props , dicoTable  ,  'Partitions Loaded', audit_schema, max_col_id  )       
+        ##############################   FINISH ############################## 
+        max_col_id = write_audit_row_management( spark  , props , dicoTable  ,  'finish', audit_schema, max_col_id  )
+    ##############################   FINISH JOB ##############################
+    table = tables[-1]
+    props['HiveTabel']       = "{0}.{1}_{2}".format(props['hive_db_name_dest'],'tbl',table.rstrip()).lower()
+    dicoTableMain['cod_file'] = props['HiveTabel']
+    max_col_id = write_audit_row_management( spark  , props , dicoTableMain  ,  'finish_job' , audit_schema, max_col_id )
+

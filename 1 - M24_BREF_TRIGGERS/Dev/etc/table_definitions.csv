@@ -1,0 +1,1 @@
+tbl_bref_triggers;COD_RAF string, NUM_FICHE int, COD_VISION string, FLG_CA_RAF string, DAT_LAST_CA date, DAT_TRIGGER_ACTIVATION date;'/dr/m24/public/hive/m24_trr.db/tbl_bref_triggers';

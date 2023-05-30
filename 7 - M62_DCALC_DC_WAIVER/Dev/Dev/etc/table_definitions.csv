@@ -1,0 +1,1 @@
+m62_great.tbl_calc_dc_waiver;DI_NDEMA int, DI_LDOSS string, TCI_CRAF string, DAT_VAL_DC date, DAT_VAL_CONC date, LIB_NOUVELLE_CONC string;'/dr/m62/public/hive/m62_great.db/tbl_calc_dc_waiver';

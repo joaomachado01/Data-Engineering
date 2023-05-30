@@ -1,0 +1,157 @@
+#!/bin/ksh
+
+#ODate input provided by CONTROLM
+ODATE=${1}
+[ "X${ODATE}" = "X" ] && echo "Input ODATE not specified" && exit 1
+
+ctrlmExports ${0}
+switch ${GEHLOG} > /dev/null
+
+#-------------------------------------------------------------------
+#Initialisation du service OBLIGATOIRE
+#-------------------------------------------------------------------
+#-------------------------------------------------------------------
+#Environment variables
+#-------------------------------------------------------------------
+_GENERAL_ENV="${GEDAAETC}/env.ksh"
+_LOCAL_ENV="${GEDAACC}/etc/env.ksh"
+[ -a ${_GENERAL_ENV} ] && . ${_GENERAL_ENV}
+[ -a ${_LOCAL_ENV} ] && . ${_LOCAL_ENV}
+job_status="SUCCESSFULLY"
+
+#-------------------------------------------------------------------
+#Set the local variables values
+#-------------------------------------------------------------------
+
+_DATE=$(date +"%Y%m%d")
+_LOG_DATE=$(date +"%Y%m%d%H%M%S")
+_LOG_FILE="${M62LOGDIR}/$(basename ${0})_${_LOG_DATE}.log"
+echo ${_LOG_FILE}
+
+_WAIT_PATH="${GEDAACC}/cft/${_IDF}.wait"
+echo `ls -l $_WAIT_PATH/*.xls |wc -l`
+_DONE_PATH="${GEDAACC}/cft/${_IDF}.done"
+_ERROR_PATH="${GEDAACC}/errors"
+
+
+echo "DB_INSTANCE: $_ORACLE_SID"
+
+#Move files from the previous execution to the DONE folder.
+
+_COUNT_FILES=`ls -l $_WAIT_PATH/*.xls |wc -l`
+echo $_WAIT_PATH
+if [ $_COUNT_FILES -gt 0 ]; then
+
+echo "$_COUNT_FILES file(s) found to move from wait to the done folder"
+echo "Moving .xls files from $_WAIT_PATH to $_DONE_PATH..." >> ${_LOG_FILE}
+mv ${_WAIT_PATH}/*.xls  $_DONE_PATH
+_CODE=$?
+
+fi
+
+if [ $_CODE -eq 0 ]; then
+	echo "Files moved to the DONE folder successfully." >> ${_LOG_FILE}
+else
+	echo "No files moved to the DONE folder." >> ${_LOG_FILE}
+fi
+
+#-----------------------Start the job ------------------------------------
+echo -e " ********** Launching the JOB ${CTM0} $(date +%Y%m%d) ********** \n\n" >> ${_LOG_FILE}
+#-------------------------------------------------------------------------
+	_EXE_NAME="sqlplus"
+	#log file
+	_PROC_RISQ_SOUV_LOG="${M62LOGDIR}/RisquesSouverains_$_LOG_DATE.log"
+
+	#sql script to generate the report
+	_SQL_RISQ_SOUV_DAT="${M62SQLDIR}/extract_risques_souverains_report.sql"
+	
+	### Get the date from odate and assing it to compose the file name ###
+	# Get date value from ODATE as YYYYMMDD
+	YEAR=$(date '+%Y')
+	YEAR_SLICED=${YEAR:0:2}
+	ODATE_YY=${ODATE:0:2}
+	ODATE_MM=${ODATE:2:2}
+	ODATE_DD=${ODATE:4:2}
+	DATE_FORMAT=$YEAR_SLICED$ODATE_YY$ODATE_MM$ODATE_DD
+
+	# Get right date value based on week day
+	if [[ $(date -d $DATE_FORMAT +%u) -eq 1 ]]; then 
+		# If monday get d-3
+		DATE_DIFF=3
+		DATE_FINAL=$(date --date="${DATE_FORMAT} -${DATE_DIFF} day" +%d%m%Y)
+	else
+		# Get d-1
+		DATE_DIFF=1
+		DATE_FINAL=$(date --date="${DATE_FORMAT} -${DATE_DIFF} day" +%d%m%Y)
+	fi
+
+	# Assign right date value to file name
+	risques_souverains_file_name="${M62TEMPDIR}/RisquesSouverains_$DATE_FINAL.xls"	
+	
+	# Database connection and command to generate the exposure report
+	_EXE_PARM="${M62USER}/${M62PASSWD}@${_ORACLE_SID} @${_SQL_RISQ_SOUV_DAT} ${risques_souverains_file_name}"
+
+	# Check if the SQL file exists
+	if [ ! -f $_SQL_RISQ_SOUV_DAT ]; then
+			echo "The file  '$_SQL_RISQ_SOUV_DAT'doesn't exist" ${_LOG_FILE}
+			exit 2
+	fi
+
+	# Calling function to return risques souverains data
+	echo "Running SQL File to generate the risques souverains limit report..." >> ${_LOG_FILE}
+	$_EXE_NAME $_EXE_PARM > $_PROC_RISQ_SOUV_LOG
+	_CODE=$?
+	
+	if [ $_CODE -eq 0 ]; then
+		echo "Risques souverains report successfully processed." >> ${_LOG_FILE}
+	else
+		_CODE=8
+	fi
+	
+	# Check if the risques souverains log file exists
+	if [ ! -f $_PROC_RISQ_SOUV_LOG ]; then
+			echo "Error generating the file  '$risques_souverains_file_name'. Check for lack of space on the server and rerun the job." >> ${_LOG_FILE}
+			exit 3
+	fi
+	
+	# Check for database errors
+	grep ERROR $_PROC_LOG > ${M62LOGDIR}/$_LOG_FILE
+	_CODE=$?
+	if [ ${_CODE} -eq 0 ]; then
+			echo "Error running ${_SQL_RISQ_SOUV_DAT} "
+			exit 4
+	else
+		_CODE=0
+	fi
+	
+	echo -e "\n ---------- Check if the risques souverains file was generated ----------\n" >> ${_LOG_FILE}
+	cd ${M62TEMPDIR}
+	if [ -s $risques_souverains_file_name ]; then
+		echo -e "    The file $risques_souverains_file_name successfully generated " >> ${_LOG_FILE}
+		echo -e "    Moving the file $risques_souverains_file_name to the wait folder" >> ${_LOG_FILE}
+		mv ${M62TEMPDIR}/RisquesSouverains*.xls  $_WAIT_PATH
+		_CODE=$?
+		if [ $_CODE -ne 0 ]; then
+			echo -e "    Unexpected ERROR moving the file $risques_souverains_file_name to the wait folder!" >> ${_LOG_FILE}
+		fi
+
+	else
+		echo -e "    The file  $risques_souverains_file_name is empty : File not sent" >> ${_LOG_FILE}
+		job_status="FAILED"
+		_CODE=10
+	fi
+				
+	# Cleaning work folders
+	# If the file was generated successfully, clean ${M62TEMPDIR} folder 
+	if [ ${_CODE} -eq 0 ]; then  
+		rm -f ${M62TEMPDIR}/*  
+		echo -e "    Cleaning travaux folder done successfully" >> ${_LOG_FILE}
+	else
+		mv ${M62TEMPDIR}/* $_ERROR_PATH  # Moving file in error to ~/error folder
+		echo -e "       Moving files to the errors repository (${GEDAACC}/errors) " >> ${_LOG_FILE}
+	fi	
+
+#------------------------End of the job------------------------
+echo -e "\n\n ********** $job_status finishing the job ${CTM0}  $(date +%Y%m%d-%H%M%S) ********** " >> ${_LOG_FILE}
+exit ${_CODE}
+#-------------------------------------------------------------------------

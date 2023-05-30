@@ -1,0 +1,1 @@
+m62_great.tbl_raf_bankruptcy;COD_RAF string, ID_GROUP string, COD_RAF_DEFAULT string, WL_LEVEL string, DT_DEFAULT date, FLG_CTP_DOUTEUX string, REPORTING_DATE date;'/dr/m62/public/hive/m62_great.db/tbl_raf_bankruptcy';

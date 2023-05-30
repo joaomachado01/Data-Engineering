@@ -1,0 +1,73 @@
+#!/bin/ksh
+
+
+ctrlmExports ${0}
+
+_GENERAL_ENV="${GEDAAETC}/env.ksh"  
+_LOCAL_ENV="${GEDAACH}/etc/env.ksh"
+
+[ -a ${_GENERAL_ENV} ] && . ${_GENERAL_ENV}
+[ -a ${_LOCAL_ENV} ] && . ${_LOCAL_ENV}
+[ ${a} -eq 0 ] && ErrorLog "impossible de charger l'environnement" && exit 1*
+
+
+#Date passee en argument par CONTROLM
+ODATE=${1}
+PART_TYPE=${2}
+[ "X${ODATE}" = "X" ] && echo "Parm ODATE non specifie" && exit 1
+
+#----------#
+#  MAIN    #
+#----------#
+echo "loading file "
+returnCode=0
+
+#setting separator
+IFS='|'
+
+#search for the config of the file ID passed in parameter
+#CONFIG=`dos2unix < ${ETC}/files.conf |grep "^${2}"`
+#set -A CONFIG_ARRAY ${CONFIG}
+
+#return IFS to standard value
+#unset IFS
+
+#echo "selected line in the config file:" ${CONFIG}
+#echo "array content:" ${CONFIG_ARRAY[@]}
+
+echo "JOB   : ${JOB}"
+echo "FOLDER: ${FOLDER}"
+echo "ETC   : ${ETC}"
+echo "LOGS  : ${LOGS}"
+echo "CFT   : ${CFT}"
+echo "TRAVAUX : ${TRAVAUX}"
+echo "ENV     : ${ENV}"
+echo "COMMON_BIN: ${COMMON_BIN}"
+echo "COMMON_SBIN: ${COMMON_SBIN}"
+echo "COMMON_ETC: ${COMMON_ETC}"
+echo "FILE_MAIN_P: ${FILE_MAIN_P}"
+echo "FILE_Globalparams: ${FILE_Globalparams}"
+echo "FILE_TABLES: ${FILE_TABLES}"
+echo "FILE_JAR: ${FILE_JAR}"
+echo "PARAM1 ODATE : ${ODATE}"
+echo "PARAM2 PART_TYPE: ${PART_TYPE}"
+
+
+#AtLeastAFile=1
+echo "**************************************"
+#echo "starting to load file: [$filename]" 
+echo "**************************************"
+spark-submit --master yarn --deploy-mode client --num-executors 6 --executor-memory 8G --driver-memory 8G --conf spark.hadoop.metastore.catalog.default=hive ${FILE_MAIN_P} ${FILE_Globalparams} ${FILE_TABLES} ${ODATE}
+#spark-submit --master yarn --deploy-mode client --num-executors 6 --executor-memory 8G --driver-memory 8G --conf spark.hadoop.metastore.catalog.default=hive ./bin/MainPgm.py ./etc/Globalparams.conf ./etc/tables_to_load.csv 220601
+
+if [ $? -eq 0 ]
+then
+	echo "### ${filename} has been processed"
+else
+		returnCode=-1
+		echo "### Spark failed to process file${filename}"
+fi
+	
+#done
+
+exit $returnCode

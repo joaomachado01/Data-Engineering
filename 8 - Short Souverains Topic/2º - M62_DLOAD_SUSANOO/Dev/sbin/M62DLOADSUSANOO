@@ -1,0 +1,108 @@
+#!/bin/ksh
+# ----------------------------------------------------------------------------
+# ?X6ADLOADALM: Chargement des tables finales BGU
+# ----------------------------------------------------------------------------
+# Parametres     :
+# Entr�es        :
+# Sorties        :
+# ----------------------------------------------------------------------------
+# AUTO creation
+# ----------------------------------------------------------------------------
+
+#-------------------------------------------------------------------
+#Diverses initialisations de variables obligatoires
+#-------------------------------------------------------------------
+
+#Date pass�e en argument par CONTROLM
+ODATE=${1}
+[ "X${ODATE}" = "X" ] && echo "Parm ODATE non specifie" && exit 1
+
+ctrlmExports ${0}
+switch ${GEHLOG} > /dev/null
+
+#-------------------------------------------------------------------
+#Initialisation du service OBLIGATOIRE
+#-------------------------------------------------------------------
+#-------------------------------------------------------------------
+#Chargement des variables d'environnement
+#-------------------------------------------------------------------
+_GENERAL_ENV="${GEDAAETC}/env.ksh"
+_LOCAL_ENV="${GEDAACC}/etc/env.ksh"
+[ -a ${_GENERAL_ENV} ] && . ${_GENERAL_ENV}
+[ -a ${_LOCAL_ENV} ] && . ${_LOCAL_ENV}
+
+#-------------------------------------------------------------------
+#Initialisation des variables n'ayant pas a etre modifiees
+#-------------------------------------------------------------------
+CODE=0
+_DATE=$(date +"%Y%m%d")
+
+#-------------------------------------------------------------------
+#Initialisation des variables specifiques au job
+#-------------------------------------------------------------------
+
+_LOG_FILE="${M62LOGDIR}/$(basename ${0})_${_DATE}.log"
+_EXE_NAME="sqlplus"
+# Param�tres pour le lancement de la proc
+_SQL_PARM="${M62USER}/${M62PASSWD}@${_ORACLE_SID}"
+_SQL_FILE="${M62SQLDIR}/alim_sus.sql"
+_PROC_LOG="${M62LOGDIR}/alim_sus-$_DATE.log"
+# Chaine de connexion Oracle
+_EXE_PARM="$_SQL_PARM @$_SQL_FILE"
+
+
+#-------------------------------------------------------------------
+#Debut du job proprement dit
+#-------------------------------------------------------------------
+# On verifie l'existence du fichier de log
+
+if [ ! -f ${_LOG_FILE} ]; then
+        echo "Le fichier '$_LOG_FILE' n'existe pas"
+        touch ${_LOG_FILE}
+fi
+
+
+
+# ---------------------------------------------------------------------------- #
+# Compilation de la PROCEDURE alim_sus
+# ---------------------------------------------------------------------------- #
+echo " $(date +"%Y/%m/%d %H:%M:%S") D�but appel de la proc�dure alim_sus du package PACK_REP_BATCH " >> $_LOG_FILE
+
+# On verifie l'existence du fichier sql
+if [ ! -f $_SQL_FILE ]; then
+        echo "Le fichier '$_SQL_FILE' n'existe pas" >> $_LOG_FILE
+        exit 1
+fi
+
+# Appel de la proc�dure stock�e
+$_EXE_NAME $_EXE_PARM > $_PROC_LOG
+_CODE=$?
+
+# On verifie l'existence du fichier de log
+if [ ! -f $_PROC_LOG ]; then
+        echo "Le fichier '$_PROC_LOG' n'existe pas" >> $_LOG_FILE
+        exit 2
+fi
+
+# On verifie qu'il n'y a pas d'erreur ORACLE
+grep ERROR $_PROC_LOG > ${M62LOGDIR}/alim_sus$_DATE.txt
+_CODE=$?
+
+if [ ${_CODE} -eq 0 ]; then
+        echo "PLANTAGE DE LA PROC alim_sus.sql"
+        exit 3
+else
+	_CODE=0
+	# suppression des fichiers dans travaux
+	rm ${M62TEMPDIR}/*
+fi
+
+echo "*********************** Fin chargement des donn�es SUSANOO $(date +"%Y/%m/%d %H:%M:%S") ***********************" >> $_LOG_FILE
+
+
+#-------------------------------------------------------------------
+#Fin du job proprement dit
+#-------------------------------------------------------------------
+echo "exit ${_CODE}"
+exit ${_CODE}
+
