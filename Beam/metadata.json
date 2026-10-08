@@ -1,0 +1,16 @@
+{
+  "name": "My Branching Pipeline",
+  "description": "A branching pipeline that writes raw to GCS Coldline",
+  "parameters": [
+    {
+      "name": "input",
+      "label": "Input file path.",
+      "helpText": "Path to json file."
+    },
+    {
+      "name": "table",
+      "label": "Output file location",
+      "helpText": "Bigquery table"
+    }
+  ]
+}
