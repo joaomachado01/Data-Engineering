@@ -1,0 +1,40 @@
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "[APP]" AS app
+FROM [APP_SCHEMA].tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_reception, int_reject_line, time_key, key_partition, "[APP]" AS app
+FROM [APP_SCHEMA].tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "[APP]" AS app
+FROM [APP_SCHEMA].tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "[APP]" AS app
+FROM [APP_SCHEMA].tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "[APP]" AS app
+FROM [APP_SCHEMA].tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "[APP]" AS app
+FROM [APP_SCHEMA].tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "[APP]" AS app
+FROM [APP_SCHEMA].tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+

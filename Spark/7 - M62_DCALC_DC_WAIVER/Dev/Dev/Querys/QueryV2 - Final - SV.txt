@@ -1,0 +1,61 @@
+SELECT 
+    di_ndema,
+    di_ldoss,
+    tci_craf,
+    dt_val_dc,
+    dat_val_conc,
+    lib_nouvelle_conc
+FROM (
+        SELECT 
+            DISTINCT
+            di_ndema,
+            di_ldoss,
+            tci_craf,
+            dt_val_dc,
+            dat_val_conc,
+            lib_nouvelle_conc,
+            ROW_NUMBER() OVER(PARTITION BY tci_craf ORDER BY di_ndema DESC) AS row_
+        FROM (
+                SELECT 
+                    di_ndema,
+                    di_ldoss,
+                    tci_craf,
+                    CASE
+                        WHEN ag_dec_dcrea = '1900-01-01' THEN NULL
+                        ELSE ag_dec_dcrea
+                    END dt_val_dc,
+                    CASE
+                        WHEN vdate = '1900-01-01' THEN NULL
+                        ELSE vdate
+                    END dat_val_conc,
+                    lib_nouvelle_conc,
+                    RANK() OVER(PARTITION BY tci_craf ORDER BY ag_dec_dcrea DESC, vdate DESC) AS rank_
+                FROM (
+                		SELECT 
+                		        tiers.di_ndema AS di_ndema,
+                		        dossier.di_ldoss AS di_ldoss,
+                		        tiers.tci_craf AS tci_craf,
+                		        CASE
+                		            WHEN dossier.ag_dec_dcrea IS NULL THEN '1900-01-01'
+                		            ELSE dossier.ag_dec_dcrea
+                		        END ag_dec_dcrea,
+                		        CASE
+                		            WHEN concession.vdate IS NULL THEN '1900-01-01'
+                		            ELSE concession.vdate
+                		        END vdate,
+                		        dossier.dc_nconc AS lib_nouvelle_conc,
+                		        dossier.key_partition
+                		FROM m62_great.tbl_rep_dc_tiers tiers
+                		    LEFT JOIN m62_great.tbl_rep_dc_dossier dossier ON (tiers.di_ndema=dossier.di_ndema AND tiers.key_partition=dossier.key_partition)
+                		    LEFT JOIN m62_great.tbl_rep_dc_concession concession ON (dossier.di_ndema=concession.di_ndema AND dossier.key_partition=concession.key_partition)
+                		    LEFT JOIN m62_great.tbl_rep_dc_concession_type concession_type ON (dossier.di_ndema=concession_type.di_ndema AND concession.c_id=concession_type.c_id AND concession.key_partition=concession_type.key_partition)
+                		WHERE tiers.key_partition = '201912310000'
+                		AND UPPER(dossier.di_statu) <> 'ABA'
+                		AND concession.c_id IS NOT NULL
+                		AND UPPER(concession_type.cty_id) = 'LT7'
+                		ORDER BY tiers.tci_craf, tiers.di_ndema, concession.c_id
+                	) main
+            )main_with_rank
+        WHERE main_with_rank.rank_ = 1
+    )main_with_rank_row
+WHERE main_with_rank_row.row_ = 1

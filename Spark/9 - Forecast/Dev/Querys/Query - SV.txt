@@ -1,0 +1,39 @@
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "M62" AS app
+FROM m62_great.tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_reception, int_reject_line, time_key, key_partition, "GBN" AS app
+FROM gbn_credit_risk_reporting.tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "M24" AS app
+FROM m24_trr.tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "E75" AS app
+FROM e75_credit_application.tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "FBF" AS app
+FROM fbf_credit_alert.tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "L97" AS app
+FROM l97_fermat_conso.tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
+
+UNION ALL
+
+SELECT cod_log, flg_log, cod_treatment, vls_message, cod_file, cod_job, dtt_creation, int_lines, int_sec, dtt_chargement, int_reject_line, time_key, key_partition, "Q04" AS app
+FROM q04_fermat_market.tbl_audit_trail
+WHERE  time_key >= from_unixtime(unix_timestamp()-7*60*60*24, 'yyyyMMdd')
